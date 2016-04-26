@@ -22,8 +22,8 @@ namespace LibNbt.Tags
 		public NbtByteArray(string tagName, byte[] value)
 		{
 			Name = tagName;
-			Value = new byte[value.Length];
-			Buffer.BlockCopy(value, 0, Value, 0, value.Length);
+			// Directly use the reference to reduce memory allocation
+			Value = value;
 		}
 
 		internal override void ReadTag(Stream readStream) { ReadTag(readStream, true); }
