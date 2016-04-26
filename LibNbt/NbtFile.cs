@@ -4,6 +4,7 @@ using System.IO.Compression;
 using LibNbt.Exceptions;
 using LibNbt.Queries;
 using LibNbt.Tags;
+using LZ4Sharp;
 
 namespace LibNbt
 {
@@ -17,6 +18,9 @@ namespace LibNbt
         protected bool CompressedFile { get; set; }
 
         public NbtCompound RootTag { get; set; }
+		
+		private ILZ4Decompressor decompressor;
+		private ILZ4Compressor compressor;
 
         public NbtFile() : this("") { }
         public NbtFile(string fileName) : this(fileName, true) { }
@@ -24,6 +28,12 @@ namespace LibNbt
         {
             LoadedFile = fileName;
             CompressedFile = compressed;
+			
+			if(compressed)
+            {
+                decompressor = LZ4DecompressorFactory.CreateNew();
+                compressor = LZ4CompressorFactory.CreateNew();
+            }
         }
 
         public void Dispose()
@@ -52,20 +62,11 @@ namespace LibNbt
         {
             if (compressed)
             {
-                using (var decStream = new GZipStream(fileStream, CompressionMode.Decompress))
-                {
-                    using (var memStream = new MemoryStream((int)fileStream.Length))
-                    {
-                        var buffer = new byte[4096];
-                        int bytesRead;
-                        while ((bytesRead = decStream.Read(buffer, 0, buffer.Length)) != 0)
-                        {
-                            memStream.Write(buffer, 0, bytesRead);
-                        }
-
-                        LoadFileInternal(memStream);
-                    }
-                }
+                byte[] data = new byte[fileStream.Length];
+                fileStream.Read(data, 0, (int)fileStream.Length);
+                data = decompressor.Decompress(data);
+                MemoryStream memStream = new MemoryStream(data);
+                LoadFileInternal(memStream);
             }
             else
             {
@@ -126,19 +127,8 @@ namespace LibNbt
 
                     if (compressed)
                     {
-                        using (var msCompressStream = new MemoryStream())
-                        {
-                            using (var compressStream = new GZipStream(msCompressStream, CompressionMode.Compress))
-                            {
-                                int compressRead;
-                                while ((compressRead = memStream.Read(buffer, 0, buffer.Length)) != 0)
-                                {
-                                    compressStream.Write(buffer, 0, compressRead);
-                                }
-                            }
-
-                            FileContents = msCompressStream.ToArray();
-                        }
+                        byte[] data = memStream.ToArray();;
+                        FileContents = compressor.Compress(data);
                     }
                     else
                     {
