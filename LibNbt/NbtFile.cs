@@ -100,9 +100,10 @@ namespace LibNbt
                 SaveFile(saveStream, compressed);
 
                 saveStream.Seek(0, SeekOrigin.Begin);
-
-                if (File.Exists(fileName)) { File.Delete(fileName); }
-                using (FileStream saveFile = File.OpenWrite(fileName))
+				
+                string saveFileName = fileName + ".tmp";
+                if (File.Exists(saveFileName)) { File.Delete(saveFileName); }
+                using (FileStream saveFile = File.OpenWrite(saveFileName))
                 {
                     var buffer = new byte[4096];
                     int bytesRead;
@@ -111,6 +112,8 @@ namespace LibNbt
                         saveFile.Write(buffer, 0, bytesRead);
                     }
                 }
+                if (File.Exists(fileName)) { File.Delete(fileName); }
+                File.Move (saveFileName, fileName);
             }
         }
         public virtual void SaveFile(Stream fileStream) { SaveFile(fileStream, true); }
